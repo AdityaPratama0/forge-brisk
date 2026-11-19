@@ -1562,6 +1562,7 @@ func (s *Store) graphOne(m map[string]any) any {
 		if found != nil {
 			found.State = "closed"
 			s.cacheIssue(x, found)
+			s.updateIssueTable(x)
 		}
 		return map[string]any{"data": map[string]any{"closeIssue": map[string]any{"issue": graphIssue(found)}}}
 	}
