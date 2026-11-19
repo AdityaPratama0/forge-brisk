@@ -2318,6 +2318,7 @@ func (x *Repo) issueResponse(n int) ([]byte, bool) {
 }
 
 func (x *Repo) clearPackCache() {
+	// Only clear the general pack cache; clonePack is immutable once built and never cleared.
 	x.packCache.Store(&packSnapshot{entries: map[string][]byte{}})
 }
 
@@ -2385,13 +2386,18 @@ func makePack(x *Repo, wants []string, haves map[string]bool, depth int) ([]byte
 	b.WriteString("PACK")
 	binary.Write(&b, binary.BigEndian, uint32(2))
 	binary.Write(&b, binary.BigEndian, uint32(len(ids)))
+	var zw *zlib.Writer
 	for _, id := range ids {
 		o := x.Objects[id]
 		typ := map[string]byte{"commit": 1, "tree": 2, "blob": 3, "tag": 4}[o.Kind]
 		writeObjHeader(&b, typ, len(o.Data))
-		z := zlib.NewWriter(&b)
-		z.Write(o.Data)
-		z.Close()
+		if zw == nil {
+			zw = zlib.NewWriter(&b)
+		} else {
+			zw.Reset(&b)
+		}
+		zw.Write(o.Data)
+		zw.Close()
 	}
 	sum := sha1.Sum(b.Bytes())
 	b.Write(sum[:])
